@@ -97,7 +97,7 @@ N="$(wc -l < "$SOURCES" | tr -d ' ')"
 [[ "$N" -gt 0 ]] || { echo "ERROR: no source agents found." >&2; exit 2; }
 
 # --- generate: every converted tool, sequentially, into a scratch dir ---------
-TOOLS="antigravity gemini-cli opencode cursor aider windsurf openclaw qwen zcode kimi codex osaurus hermes vibe dsh"
+TOOLS="antigravity gemini-cli opencode cursor aider windsurf openclaw qoder qwen zcode kimi codex osaurus hermes vibe dsh"
 if [[ -z "$OUT" ]]; then
   OUT="$TMP/out"; mkdir -p "$OUT"
   for t in $TOOLS; do
@@ -145,6 +145,7 @@ SPEC = {
     "dsh":         ("agency-*/SKILL.md", "yaml-fm"),
     "gemini-cli":  ("agents/*.md",       "yaml-fm"),
     "opencode":    ("agents/*.md",       "yaml-fm"),
+    "qoder":       ("agents/*.md",       "yaml-fm"),
     "qwen":        ("agents/*.md",       "yaml-fm"),
     "zcode":       ("agents/*.md",       "yaml-fm"),
     "cursor":      ("rules/*.mdc",       "yaml-fm"),
@@ -462,6 +463,44 @@ if len(qwen_bad) > 3:
     bad(f"qwen: ...and {len(qwen_bad)-3} more agents with unknown tool names")
 if not qwen_bad:
     ok("qwen: every tools: entry names a Qwen Code tool")
+
+# --- Layer A (tool names): Qoder keeps the source allow-list -------------------
+# Qoder resolves a subagent's `tools:` against its own tool set (Bash, Edit,
+# Write, Glob, Grep, Read, WebFetch, WebSearch per docs.qoder.com/extensions/
+# subagent; the CLI adds Agent and MCP tools); an entry it does not know is
+# ignored and grants nothing. Sources already use those spellings, so the
+# allow-list must survive conversion verbatim (minus MultiEdit->Edit and
+# Task->Agent): dropping it would hand a restricted agent Qoder's full default
+# set. Every source that declares tools must keep a tools: line in Qoder output.
+QODER_TOOLS = {
+    "Bash", "Edit", "Write", "Glob", "Grep", "Read", "WebFetch", "WebSearch",
+    "Agent",
+}
+qoder_bad = []
+for f in sorted(glob.glob(os.path.join(OUT, "qoder", "agents", "*.md"))):
+    slug = os.path.basename(f)[:-3]
+    try:
+        fm = frontmatter(open(f, encoding="utf-8").read()) or {}
+    except Exception:
+        continue   # the strict-parse pass already reported this
+    tools = fm.get("tools")
+    if tools is None:
+        # No allow-list in output is only right when the source had none either.
+        _src_fm = frontmatter(open(os.path.join(R, src[slug][2]), encoding="utf-8").read()) or {}
+        if str(_src_fm.get("tools") or "").strip():
+            qoder_bad.append((slug, ["<allow-list dropped>"]))
+        continue
+    entries = tools if isinstance(tools, list) else [t.strip() for t in str(tools).split(",")]
+    unknown = [t for t in entries if t and t not in QODER_TOOLS and not t.startswith("mcp__")]
+    if unknown:
+        qoder_bad.append((slug, unknown))
+for slug, unknown in qoder_bad[:3]:
+    bad(f"qoder: {slug} lists {', '.join(unknown)} — Qoder has no tool by that "
+        f"name, so the allow-list grants nothing for it")
+if len(qoder_bad) > 3:
+    bad(f"qoder: ...and {len(qoder_bad)-3} more agents with dropped or unknown tool names")
+if not qoder_bad:
+    ok("qoder: every source allow-list survives conversion as Qoder tool names")
 
 # --- Layer A (app-facing): every SOURCE frontmatter strict-parsed above -------
 for m in src_bad[:5]: bad(m)

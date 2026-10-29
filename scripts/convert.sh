@@ -18,6 +18,7 @@
 #   aider        — Single CONVENTIONS.md roster index for Aider
 #   windsurf     — Single .windsurfrules for Windsurf
 #   openclaw     — OpenClaw workspaces (integrations/openclaw/<agent>/SOUL.md)
+#   qoder        — Qoder subagents (~/.qoder/agents/*.md)
 #   qwen         — Qwen Code SubAgent files (~/.qwen/agents/*.md)
 #   zcode        — ZCode agent files (.zcode/agents/*.md · ~/.config/zcode/agents/*.md)
 #   kimi         — Kimi Code CLI agent files (~/.config/kimi/agents/)
@@ -512,6 +513,59 @@ qwen_tools() {
   printf '%s' "$out"
 }
 
+# Qoder names its tools the way Claude Code does (Bash, Edit, Write, Glob, Grep, Read,
+# WebFetch, WebSearch per docs.qoder.com/extensions/subagent; the CLI adds Agent), so the
+# source names pass through. Only two source names differ; unknown names are kept as-is —
+# a tool Qoder does not know is ignored, never granted.
+qoder_tools() {
+  local out="" t q
+  local IFS=','
+  for t in $1; do
+    t="${t#"${t%%[![:space:]]*}"}"; t="${t%"${t##*[![:space:]]}"}"
+    [[ -n "$t" ]] || continue
+    case "$t" in
+      MultiEdit) q="Edit" ;;
+      Task)      q="Agent" ;;
+      *)         q="$t" ;;
+    esac
+    case ", $out, " in *", $q, "*) continue ;; esac   # MultiEdit + Edit -> one edit
+    out="${out:+$out, }$q"
+  done
+  printf '%s' "$out"
+}
+
+convert_qoder() {
+  local file="$1" name description tools slug outfile body
+  name="$(get_field "name" "$file")"
+  description="$(get_field "description" "$file")"
+  tools="$(qoder_tools "$(get_field "tools" "$file")")"
+  slug="$(slugify "$name")"
+  body="$(get_body "$file")"
+  outfile="$OUT_DIR/qoder/agents/${slug}.md"
+  mkdir -p "$(dirname "$outfile")"
+  # Qoder subagent format: .md with YAML frontmatter in ~/.qoder/agents/ or .qoder/agents/
+  # name and description required; tools optional, and omitted when the source has none so
+  # Qoder keeps its default available set for agents that never restricted tools.
+  if [[ -n "$tools" ]]; then
+    cat > "$outfile" <<HEREDOC
+---
+name: $(yaml_quote "$slug")
+description: $(yaml_quote "$description")
+tools: $(yaml_quote "$tools")
+---
+${body}
+HEREDOC
+  else
+    cat > "$outfile" <<HEREDOC
+---
+name: $(yaml_quote "$slug")
+description: $(yaml_quote "$description")
+---
+${body}
+HEREDOC
+  fi
+}
+
 convert_qwen() {
   local file="$1"
   local name description tools slug outfile body
@@ -817,6 +871,7 @@ run_conversions() {
         opencode)    convert_opencode    "$file" ;;
         cursor)      convert_cursor      "$file" ;;
         openclaw)    convert_openclaw    "$file" ;;
+        qoder)       convert_qoder       "$file" ;;
         qwen)        convert_qwen        "$file" ;;
         zcode)       convert_zcode       "$file" ;;
         kimi)        convert_kimi        "$file" ;;
@@ -853,7 +908,7 @@ main() {
     esac
   done
 
-  local valid_tools=("antigravity" "gemini-cli" "opencode" "cursor" "aider" "windsurf" "openclaw" "qwen" "zcode" "kimi" "codex" "osaurus" "hermes" "vibe" "dsh" "all")
+  local valid_tools=("antigravity" "gemini-cli" "opencode" "cursor" "aider" "windsurf" "openclaw" "qoder" "qwen" "zcode" "kimi" "codex" "osaurus" "hermes" "vibe" "dsh" "all")
   local valid=false
   for t in "${valid_tools[@]}"; do [[ "$t" == "$tool" ]] && valid=true && break; done
   if ! $valid; then
@@ -874,7 +929,7 @@ main() {
 
   local tools_to_run=()
   if [[ "$tool" == "all" ]]; then
-    tools_to_run=("antigravity" "gemini-cli" "opencode" "cursor" "aider" "windsurf" "openclaw" "qwen" "zcode" "kimi" "codex" "osaurus" "hermes" "vibe" "dsh")
+    tools_to_run=("antigravity" "gemini-cli" "opencode" "cursor" "aider" "windsurf" "openclaw" "qoder" "qwen" "zcode" "kimi" "codex" "osaurus" "hermes" "vibe" "dsh")
   else
     tools_to_run=("$tool")
   fi
@@ -885,7 +940,7 @@ main() {
 
   if $use_parallel && [[ "$tool" == "all" ]]; then
     # Tools that write to separate dirs can run in parallel; buffer output so each tool's output stays together
-    local parallel_tools=(antigravity gemini-cli opencode cursor openclaw qwen zcode kimi codex osaurus hermes vibe dsh)
+    local parallel_tools=(antigravity gemini-cli opencode cursor openclaw qoder qwen zcode kimi codex osaurus hermes vibe dsh)
     local parallel_out_dir
     parallel_out_dir="$(mktemp -d "${TMPDIR:-/tmp}/agency-convert-parallel.XXXXXX")"
     PARALLEL_OUT_DIR="$parallel_out_dir"

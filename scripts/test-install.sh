@@ -119,6 +119,30 @@ echo "  repo: $REPO_ROOT"
 echo "  ${#ALL_DIVISIONS[@]} divisions, $TOTAL_AGENTS agents (engineering: $ENG_AGENTS)"
 echo ""
 
+# Qoder uses user-scoped agents by default and supports the common filters.
+home="$(sandbox qoder-default)"
+run_install "$home" --tool qoder --agent "$FIRST_ENG_SLUG"
+assert_eq 0 "$RUN_STATUS" "qoder filtered install succeeds"
+assert_eq 1 "$(count_md "$home/.qoder/agents")" "qoder installs one agent in user directory"
+home="$(sandbox qoder-path)"
+RUN_OUT="$(HOME="$home" QODER_AGENTS_DIR="$home/env" "$INSTALL" --no-interactive --tool qoder --agent "$FIRST_ENG_SLUG" --path "$home/project with spaces/.qoder/agents" 2>&1)"; RUN_STATUS=$?
+assert_eq 0 "$RUN_STATUS" "qoder explicit project path succeeds"
+assert_eq 1 "$(count_md "$home/project with spaces/.qoder/agents")" "qoder --path takes precedence over environment"
+assert_eq 0 "$(count_md "$home/env")" "qoder environment destination is not used when --path is set"
+home="$(sandbox qoder-env)"
+RUN_OUT="$(HOME="$home" QODER_AGENTS_DIR="$home/custom" "$INSTALL" --no-interactive --tool qoder --division engineering 2>&1)"; RUN_STATUS=$?
+assert_eq 0 "$RUN_STATUS" "qoder division install succeeds"
+assert_eq "$ENG_AGENTS" "$(count_md "$home/custom")" "qoder division filter and environment destination work"
+home="$(sandbox qoder-list)"
+printf '%s\n' "$FIRST_ENG_SLUG" > "$home/agents.txt"
+run_install "$home" --tool qoder --agents-file "$home/agents.txt"
+assert_eq 0 "$RUN_STATUS" "qoder agents-file install succeeds"
+assert_eq 1 "$(count_md "$home/.qoder/agents")" "qoder agents-file filters output"
+home="$(sandbox qoder-dry)"
+run_install "$home" --tool qoder --dry-run --agent "$FIRST_ENG_SLUG"
+assert_eq 0 "$RUN_STATUS" "qoder dry run succeeds"
+assert_eq 0 "$(count_md "$home/.qoder/agents")" "qoder dry run writes no agents"
+
 # ---------------------------------------------------------------------------
 # 1. Help and listings
 # ---------------------------------------------------------------------------

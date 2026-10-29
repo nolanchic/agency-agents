@@ -750,6 +750,7 @@ The Agency works natively with Claude Code, and ships conversion + install scrip
 - **[Aider](https://aider.chat)** — `CONVENTIONS.md` roster index → `./CONVENTIONS.md`
 - **[Windsurf](https://codeium.com/windsurf)** — single `.windsurfrules` → `./.windsurfrules`
 - **[OpenClaw](https://github.com/openclaw/openclaw)** — `SOUL.md` + `AGENTS.md` + `IDENTITY.md` per agent
+- **[Qoder](https://docs.qoder.com/extensions/subagent)** — `.md` subagents → `~/.qoder/agents/`
 - **[Qwen Code](https://github.com/QwenLM/qwen-code)** — `.md` SubAgent files → `~/.qwen/agents/`
 - **[Kimi Code](https://github.com/MoonshotAI/kimi-cli)** — YAML agent specs → `~/.config/kimi/agents/`
 - **[Codex](https://developers.openai.com/codex/overview)** — TOML custom agents → `~/.codex/agents/`
@@ -996,6 +997,20 @@ If the `openclaw` CLI is available, the installer registers each workspace autom
 Run `openclaw gateway restart` after installation so the new agents are activated.
 
 See [integrations/openclaw/README.md](integrations/openclaw/README.md) for details.
+
+</details>
+
+<details>
+<summary><strong>Qoder</strong></summary>
+
+Generate and install user-wide subagents:
+
+```bash
+./scripts/convert.sh --tool qoder
+./scripts/install.sh --tool qoder
+```
+
+For a project installation, run `./scripts/install.sh --tool qoder --path "$PWD/.qoder/agents"` from the project root. `QODER_AGENTS_DIR` also overrides the default destination; `--path` takes precedence. The standard `--division`, `--agent`, and `--agents-file` filters apply. Qoder can invoke an agent as `/agent-name` or select it based on its description. See the [Qoder subagent documentation](https://docs.qoder.com/extensions/subagent).
 
 </details>
 

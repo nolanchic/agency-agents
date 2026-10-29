@@ -21,6 +21,7 @@
 #   aider        -- Copy the CONVENTIONS.md roster index to current directory
 #   windsurf     -- Copy .windsurfrules to current directory
 #   openclaw     -- Copy workspaces to ~/.openclaw/agency-agents/
+#   qoder        -- Copy subagents to ~/.qoder/agents/ (or project via --path)
 #   qwen         -- Copy SubAgents to ~/.qwen/agents/ (user-wide) or .qwen/agents/ (project)
 #   zcode        -- Copy agents to ~/.zcode/agents/ (global) or .zcode/agents/ (project)
 #   codex        -- Copy custom agent TOML files to ~/.codex/agents/
@@ -52,7 +53,7 @@
 #   --help                Show this help
 #
 # Env: CLAUDE_CONFIG_DIR, COPILOT_AGENT_DIR, CURSOR_RULES_DIR, GEMINI_AGENTS_DIR,
-#      OPENCODE_AGENTS_DIR, OPENCLAW_DIR, QWEN_AGENTS_DIR, ZCODE_AGENTS_DIR,
+#      OPENCODE_AGENTS_DIR, OPENCLAW_DIR, QODER_AGENTS_DIR, QWEN_AGENTS_DIR, ZCODE_AGENTS_DIR,
 #      CODEX_AGENTS_DIR, OSAURUS_SKILLS_DIR, HERMES_HOME, HERMES_PLUGIN_DIR,
 #      VIBE_HOME, DSH_HOME, DSH_SKILLS_DIR
 #      override default install paths (checked before hardcoded defaults).
@@ -133,7 +134,7 @@ INTEGRATIONS="$REPO_ROOT/integrations"
 # shellcheck source=lib.sh
 . "$SCRIPT_DIR/lib.sh"
 
-ALL_TOOLS=(claude-code copilot antigravity gemini-cli opencode openclaw cursor aider windsurf qwen zcode kimi codex osaurus hermes vibe dsh)
+ALL_TOOLS=(claude-code copilot antigravity gemini-cli opencode openclaw cursor aider windsurf qoder qwen zcode kimi codex osaurus hermes vibe dsh)
 
 # The division set is derived from divisions.json (the single source of truth)
 # so the installer can never drift from the catalog — a hardcoded copy silently
@@ -357,7 +358,7 @@ install_file() {
 # group, because a full install collides on 73 files, not zero.
 path_collision_group() {
   case "$1" in
-    claude-code|copilot|gemini-cli|opencode|qwen|zcode)
+    claude-code|copilot|gemini-cli|opencode|qoder|qwen|zcode)
                                      printf 'agent-md' ;;       # <slug>.md, or the source's name
     antigravity|osaurus|dsh)         printf 'agency-skill' ;;   # agency-<slug>/SKILL.md
     *)                               printf '' ;;
@@ -392,6 +393,7 @@ resolve_dest() {
     gemini-cli)  var="GEMINI_AGENTS_DIR" ;;
     opencode)    var="OPENCODE_AGENTS_DIR" ;;
     openclaw)    var="OPENCLAW_DIR" ;;
+    qoder)       var="QODER_AGENTS_DIR" ;;
     qwen)        var="QWEN_AGENTS_DIR" ;;
     zcode)       var="ZCODE_AGENTS_DIR" ;;
     codex)       var="CODEX_AGENTS_DIR" ;;
@@ -422,7 +424,7 @@ resolve_tool_path() {
   case "$1" in
     claude-code) bin="claude" ;; copilot) bin="code" ;; gemini-cli) bin="gemini" ;;
     opencode) bin="opencode" ;; openclaw) bin="openclaw" ;; cursor) bin="cursor" ;;
-    aider) bin="aider" ;; windsurf) bin="windsurf" ;; qwen) bin="qwen" ;;
+    aider) bin="aider" ;; windsurf) bin="windsurf" ;; qoder) bin="qoder" ;; qwen) bin="qwen" ;;
     zcode) bin="zcode" ;;
     kimi) bin="kimi" ;; codex) bin="codex" ;; antigravity) bin="" ;;
     osaurus) bin="osaurus" ;; hermes) bin="hermes" ;; vibe) bin="vibe" ;;
@@ -538,6 +540,7 @@ detect_opencode()     { command -v opencode >/dev/null 2>&1 || [[ -d "${HOME}/.c
 detect_aider()        { command -v aider >/dev/null 2>&1; }
 detect_openclaw()     { command -v openclaw >/dev/null 2>&1 || [[ -d "${HOME}/.openclaw" ]]; }
 detect_windsurf()     { command -v windsurf >/dev/null 2>&1 || [[ -d "${HOME}/.codeium" ]]; }
+detect_qoder()        { command -v qoder >/dev/null 2>&1 || [[ -d "${HOME}/.qoder" ]]; }
 detect_qwen()         { command -v qwen >/dev/null 2>&1 || [[ -d "${HOME}/.qwen" ]]; }
 detect_zcode()        { command -v zcode >/dev/null 2>&1 || [[ -d "${HOME}/.zcode" ]]; }
 detect_kimi()         { command -v kimi >/dev/null 2>&1; }
@@ -558,6 +561,7 @@ is_detected() {
     cursor)      detect_cursor      ;;
     aider)       detect_aider       ;;
     windsurf)    detect_windsurf    ;;
+    qoder)       detect_qoder       ;;
     qwen)        detect_qwen        ;;
     zcode)       detect_zcode       ;;
     kimi)        detect_kimi        ;;
@@ -582,6 +586,7 @@ tool_label() {
     cursor)      printf "%-14s  %s" "Cursor"       "(.cursor/rules)"         ;;
     aider)       printf "%-14s  %s" "Aider"        "(CONVENTIONS.md)"        ;;
     windsurf)    printf "%-14s  %s" "Windsurf"     "(.windsurfrules)"        ;;
+    qoder)       printf "%-14s  %s" "Qoder" "(~/.qoder/agents)" ;;
     qwen)        printf "%-14s  %s" "Qwen Code"    "(~/.qwen/agents)"        ;;
     zcode)       printf "%-14s  %s" "ZCode"        "(~/.zcode/agents)" ;;
     kimi)        printf "%-14s  %s" "Kimi Code"    "(~/.config/kimi/agents)" ;;
@@ -713,7 +718,7 @@ tool_simple_name() {
     claude-code) echo "Claude Code";; copilot) echo "Copilot";; antigravity) echo "Antigravity";;
     gemini-cli) echo "Gemini CLI";; opencode) echo "OpenCode";; openclaw) echo "OpenClaw";;
     cursor) echo "Cursor";; aider) echo "Aider";; windsurf) echo "Windsurf";;
-    qwen) echo "Qwen Code";; zcode) echo "ZCode";; kimi) echo "Kimi Code";; codex) echo "Codex";; osaurus) echo "Osaurus";; dsh) echo "DeepSeek Harness";; *) echo "$1";;
+    qoder) echo "Qoder";; qwen) echo "Qwen Code";; zcode) echo "ZCode";; kimi) echo "Kimi Code";; codex) echo "Codex";; osaurus) echo "Osaurus";; dsh) echo "DeepSeek Harness";; *) echo "$1";;
   esac
 }
 
@@ -1112,6 +1117,20 @@ install_windsurf() {
   ok "Windsurf: installed -> $dest"
   $SELECTION_ACTIVE && warn "Windsurf: single-file format — team/agent filtering N/A (installs the full roster)."
   warn "Windsurf: project-scoped. Run from your project root to install there."
+}
+
+install_qoder() {
+  local src="$INTEGRATIONS/qoder/agents"
+  local dest; dest="$(resolve_dest qoder "${HOME}/.qoder/agents")"
+  local count=0 f
+  [[ -d "$src" ]] || { err "integrations/qoder missing. Run convert.sh first."; return 1; }
+  mkdir -p "$dest"
+  while IFS= read -r -d '' f; do
+    slug_allowed "$(basename "$f" .md)" || continue
+    install_file "$f" "$dest/"
+    incr count
+  done < <(find "$src" -maxdepth 1 -name "*.md" -print0)
+  ok "Qoder: installed $count agents to $dest"
 }
 
 install_qwen() {
@@ -1554,6 +1573,7 @@ install_tool() {
     cursor)      install_cursor      ;;
     aider)       install_aider       ;;
     windsurf)    install_windsurf    ;;
+    qoder)       install_qoder       ;;
     qwen)        install_qwen        ;;
     zcode)       install_zcode       ;;
     kimi)        install_kimi        ;;
